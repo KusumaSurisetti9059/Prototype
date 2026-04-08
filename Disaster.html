@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Disaster Course Portal</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background-color: #f4f4f9;
+            text-align: center;
+        }
+
+        .vr-container {
+            width: 800px;
+            height: 600px;
+            margin: 20px auto;
+            border: 4px solid #333;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Interactive VR Training Portal</h1>
+    <p>Please complete your disaster management simulation below:</p>
+    <!-- This is the frame that loads your A-Frame file -->
+    <div class="vr-container">
+        <iframe src="DisasterManagement.html"
+            allow="xr-spatial-tracking; vr; gyroscope; accelerometer; fullscreen"></iframe>
+    </div>
+</body>
+
+</html>

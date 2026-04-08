@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global VR Travel Experience</title>
+    <!-- Load A-Frame core library -->
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+
+    <script>
+        // Custom component to make elements always face the camera
+        AFRAME.registerComponent('look-at', {
+            schema: { type: 'selector' },
+            tick: function () {
+                if (this.data) {
+                    var targetPosition = new THREE.Vector3();
+                    this.data.object3D.getWorldPosition(targetPosition);
+                    // Zero out the Y axis so the text doesn't tilt up/down strangely
+                    targetPosition.y = this.el.object3D.position.y;
+                    this.el.object3D.lookAt(targetPosition);
+                }
+            }
+        });
+
+        // Component to handle teleporting between destinations
+        AFRAME.registerComponent('teleport-portal', {
+            schema: {
+                destination: {type: 'string'}, // ID of the image asset
+                name: {type: 'string'}         // Human readable name
+            },
+            init: function () {
+                var el = this.el;
+                var data = this.data;
+                var sky = document.querySelector('#main-sky');
+                var title = document.querySelector('#location-title');
+                var uiPanel = document.querySelector('#ui-hover');
+
+                // Hover Effects
+                el.addEventListener('mouseenter', function () {
+                    // Scale up the portal sphere to indicate focus
+                    el.setAttribute('scale', '1.2 1.2 1.2');
+                    
+                    // Show destination name on hover
+                    uiPanel.setAttribute('text', 'value', 'Travel to:\n' + data.name);
+                    uiPanel.setAttribute('visible', 'true');
+                    
+                    // Position UI panel above the portal
+                    var pos = el.getAttribute('position');
+                    uiPanel.setAttribute('position', {x: pos.x, y: pos.y + 1, z: pos.z});
+                    // Ensure the UI text faces the camera
+                    uiPanel.setAttribute('look-at', '#main-camera');
+                });
+
+                el.addEventListener('mouseleave', function () {
+                    el.setAttribute('scale', '1 1 1');
+                    uiPanel.setAttribute('visible', 'false');
+                });
+
+                // Teleport Action
+                el.addEventListener('click', function () {
+                    // Update the persistent title immediately
+                    title.setAttribute('text', 'value', 'Traveling...');
+
+                    // 1. Fade out current sky to black
+                    sky.setAttribute('animation__fadeout', {
+                        property: 'material.opacity',
+                        to: 0,
+                        dur: 500,
+                        easing: 'linear'
+                    });
+
+                    // Wait for fade-out to finish
+                    setTimeout(function() {
+                        // 2. Change the 360 texture
+                        sky.setAttribute('src', data.destination);
+                        
+                        // Update HUD title
+                        title.setAttribute('text', 'value', 'Current Location: ' + data.name);
+                        
+                        // 3. Fade the sky back in
+                        sky.setAttribute('animation__fadein', {
+                            property: 'material.opacity',
+                            to: 1,
+                            dur: 500,
+                            easing: 'linear'
+                        });
+                        
+                        // Cleanup old animations
+                        setTimeout(function() {
+                            sky.removeAttribute('animation__fadeout');
+                            sky.removeAttribute('animation__fadein');
+                        }, 500);
+                    }, 500);
+                });
+            }
+        });
+    </script>
+</head>
+<body>
+    <a-scene>
+
+        <!-- Pre-load all 360 Equirectangular Images and thumbnails -->
+        <a-assets>
+            <!-- Beautiful 360 scenic images -->
+            <img id="paris" src="https://cdn.aframe.io/360-image-gallery-boilerplate/img/city.jpg" crossorigin="anonymous">
+            <img id="nature" src="https://cdn.aframe.io/360-image-gallery-boilerplate/img/sechelt.jpg" crossorigin="anonymous">
+            <img id="museum" src="https://cdn.aframe.io/360-image-gallery-boilerplate/img/cubes.jpg" crossorigin="anonymous">
+            
+            <!-- Sphere Thumbnail textures -->
+            <img id="thumb-paris" src="https://cdn.aframe.io/360-image-gallery-boilerplate/img/thumb-city.jpg" crossorigin="anonymous">
+            <img id="thumb-nature" src="https://cdn.aframe.io/360-image-gallery-boilerplate/img/thumb-sechelt.jpg" crossorigin="anonymous">
+            <img id="thumb-museum" src="https://cdn.aframe.io/360-image-gallery-boilerplate/img/thumb-cubes.jpg" crossorigin="anonymous">
+        </a-assets>
+
+        <!-- The 360 Sky Background (Starts in nature) -->
+        <!-- We use an animation property so it can fade out by fading its material opacity -->
+        <a-sky id="main-sky" src="#nature" radius="100" rotation="0 -90 0" material="opacity: 1; transparent: true"></a-sky>
+
+        <!-- ================= UI ELEMENTS ================= -->
+
+        <!-- Dynamic Hover Text (Shows up when looking at a portal) -->
+        <!-- Starts invisible, handled by JS -->
+        <a-entity id="ui-hover" geometry="primitive: plane; width: 1.8; height: 0.6" material="color: #000; opacity: 0.8" 
+                  text="value: Travel Node; align: center; width: 3; color: #FFF" visible="false" position="0 0 0"></a-entity>
+
+        <!-- Instruction Base Platform -->
+        <a-cylinder position="0 -1.5 0" radius="2" height="0.1" color="#333" material="opacity: 0.5; transparent: true"></a-cylinder>
+        <a-text value="Look at a floating portal to Travel!" rotation="-90 0 0" position="0 -1.4 0" align="center" color="#FFF" width="4"></a-text>
+
+        <!-- ================= TRAVEL PORTALS ================= -->
+        
+        <!-- Portal 1: Paris Cityscape -->
+        <a-entity position="-3 1.5 -4" class="clickable" teleport-portal="destination: #paris; name: Paris Metropolis">
+            <!-- The 3D globe thumbnail -->
+            <a-sphere radius="0.6" material="src: #thumb-paris; shader: flat" animation="property: rotation; to: 0 360 0; loop: true; dur: 8000; easing: linear"></a-sphere>
+            <!-- Glowing accent ring -->
+            <a-ring radius-inner="0.7" radius-outer="0.75" color="#FFD700" material="shader: flat" animation="property: rotation; to: 0 0 360; loop: true; dur: 4000; easing: linear"></a-ring>
+            <!-- Particles/sparkles representation -->
+            <a-torus radius="0.8" radius-tubular="0.01" rotation="90 0 0" color="#FFD700" animation="property: rotation; to: 90 360 0; loop: true; dur: 3000"></a-torus>
+        </a-entity>
+
+        <!-- Portal 2: Coastal Mountains -->
+        <a-entity position="0 1.5 -5" class="clickable" teleport-portal="destination: #nature; name: Coastal Mountains">
+            <a-sphere radius="0.6" material="src: #thumb-nature; shader: flat" animation="property: rotation; to: 0 360 0; loop: true; dur: 8000; easing: linear"></a-sphere>
+            <a-ring radius-inner="0.7" radius-outer="0.75" color="#00FFCC" material="shader: flat" animation="property: rotation; to: 0 0 -360; loop: true; dur: 4000; easing: linear"></a-ring>
+            <a-torus radius="0.8" radius-tubular="0.01" rotation="90 0 0" color="#00FFCC" animation="property: rotation; to: 90 360 0; loop: true; dur: 3000"></a-torus>
+        </a-entity>
+
+        <!-- Portal 3: Cubism Art Museum -->
+        <a-entity position="3 1.5 -4" class="clickable" teleport-portal="destination: #museum; name: Modern Art Museum">
+            <a-sphere radius="0.6" material="src: #thumb-museum; shader: flat" animation="property: rotation; to: 0 360 0; loop: true; dur: 8000; easing: linear"></a-sphere>
+            <a-ring radius-inner="0.7" radius-outer="0.75" color="#FF00CC" material="shader: flat" animation="property: rotation; to: 0 360 360; loop: true; dur: 4000; easing: linear"></a-ring>
+            <a-torus radius="0.8" radius-tubular="0.01" rotation="90 0 0" color="#FF00CC" animation="property: rotation; to: 90 360 0; loop: true; dur: 3000"></a-torus>
+        </a-entity>
+
+        <!-- ================= CAMERA RIG ================= -->
+        <a-entity position="0 1.6 0">
+            <a-camera id="main-camera">
+                <!-- Interactive Cursor -->
+                <a-entity cursor="fuse: true; fuseTimeout: 1500"
+                          position="0 0 -1"
+                          geometry="primitive: ring; radiusInner: 0.015; radiusOuter: 0.025"
+                          material="color: #FFF; shader: flat"
+                          raycaster="objects: .clickable"
+                          animation__click="property: scale; startEvents: click; easing: easeInCubic; dur: 150; from: 0.1 0.1 0.1; to: 1 1 1"
+                          animation__fusing="property: scale; startEvents: fusing; easing: easeInCubic; dur: 1500; from: 1 1 1; to: 0.1 0.1 0.1"
+                          animation__mouseleave="property: scale; startEvents: mouseleave; easing: easeInCubic; dur: 300; to: 1 1 1">
+                </a-entity>
+                
+                <!-- Persistent HUD (Top of screen) showing current location -->
+                <a-entity position="0 0.8 -2" geometry="primitive: plane; width: 2.2; height: 0.25" material="color: #000; opacity: 0.7; shader: flat; transparent: true">
+                    <a-text id="location-title" value="Current Location: Coastal Mountains" align="center" position="0 0 0.01" color="#00FFCC" scale="0.45 0.45 0.45"></a-text>
+                </a-entity>
+            </a-camera>
+        </a-entity>
+
+    </a-scene>
+</body>
+</html>

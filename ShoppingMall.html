@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Retail - Online Shopping Experience</title>
+    <!-- Load A-Frame core library -->
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script>
+        // Component to handle interactivity with shop items
+        AFRAME.registerComponent('shop-item', {
+            schema: {
+                name: { type: 'string', default: 'Mystery Item' },
+                price: { type: 'number', default: 99.99 },
+                desc: { type: 'string', default: 'An absolute must-have product.' }
+            },
+            init: function () {
+                let el = this.el;
+                let data = this.data;
+                // References to UI elements
+                let uiOverlay = document.querySelector('#ui-overlay');
+                let uiName = document.querySelector('#ui-name');
+                let uiPrice = document.querySelector('#ui-price');
+                let uiDesc = document.querySelector('#ui-desc');
+                let notification = document.querySelector('#cart-notification');
+                // Hover Effect
+                el.addEventListener('mouseenter', function () {
+                    // Gently scale the item
+                    el.setAttribute('scale', '1.2 1.2 1.2');
+                    // Position the UI panel nicely above the product
+                    let pos = el.getAttribute('position');
+                    uiOverlay.setAttribute('position', { x: pos.x, y: pos.y + 1.2, z: pos.z });
+
+                    // Populate the UI text
+                    uiName.setAttribute('text', 'value', data.name);
+                    uiPrice.setAttribute('text', 'value', '$' + data.price.toFixed(2));
+                    uiDesc.setAttribute('text', 'value', data.desc);
+
+                    // Make UI visible
+                    uiOverlay.setAttribute('visible', 'true');
+                });
+                el.addEventListener('mouseleave', function () {
+                    // Return to normal size
+                    el.setAttribute('scale', '1 1 1');
+                    // Hide UI
+                    uiOverlay.setAttribute('visible', 'false');
+                });
+                // Click / Activate Effect (Triggered on fuse timeout)
+                el.addEventListener('click', function () {
+                    // Show Added to Cart notification
+                    notification.setAttribute('text', 'value', data.name + ' added to cart!');
+                    notification.setAttribute('visible', 'true');
+
+                    // Animate rotation to simulate a success interaction
+                    el.setAttribute('animation__click', {
+                        property: 'rotation',
+                        to: '0 360 0',
+                        loop: false,
+                        dur: 600,
+                        easing: 'easeInOutQuad'
+                    });
+                    // Cleanup animation and hide alert
+                    setTimeout(() => {
+                        notification.setAttribute('visible', 'false');
+                        el.removeAttribute('animation__click');
+                    }, 3000);
+                });
+            }
+        });
+    </script>
+</head>
+
+<body>
+    <!-- The VR Scene Document -->
+    <a-scene background="color: #0A0A0A">
+        <!-- Asset Management System -->
+        <a-assets>
+            <img id="floor-texture" src="https://cdn.aframe.io/a-painter/images/floor.jpg" crossorigin="anonymous">
+            <img id="sky-texture" src="https://cdn.aframe.io/360-image-gallery-boilerplate/img/city.jpg"
+                crossorigin="anonymous">
+        </a-assets>
+        <!-- World Environment -->
+        <!-- The Sky - giving a nice ambient vibe to the store -->
+        <a-sky src="#sky-texture" opacity="0.4" rotation="0 -90 0"></a-sky>
+        <!-- The Floor - a reflective grid-like floor for a modern look -->
+        <a-plane src="#floor-texture" repeat="20 20" rotation="-90 0 0" width="100" height="100"
+            material="metalness: 0.6; roughness: 0.4"></a-plane>
+        <!-- Ambient lighting and directional lighting for shadows and depth -->
+        <a-light type="ambient" color="#FFF" intensity="0.6"></a-light>
+        <a-light type="directional" color="#FFF" intensity="0.8" position="-1 4 2"></a-light>
+        <a-light type="point" color="#4CA1AF" intensity="1" position="0 2 -3"></a-light>
+        <!-- Store Header / Welcome Sign -->
+        <a-entity position="0 4.5 -4">
+            <a-text value="V I R T U A L   S H O P P I N G" align="center" width="8" color="#FFF" font="kelsonsans"
+                letter-spacing="5"></a-text>
+            <a-text value="Gaze at any item for 2 seconds to view details & buy" align="center" position="0 -0.5 0"
+                width="4" color="#00FFCC"></a-text>
+        </a-entity>
+        <!-- Dynamic UI Panel (Rendered dynamically when hovering items) -->
+        <a-entity id="ui-overlay" visible="false">
+            <!-- UI Background -->
+            <a-plane color="#111" opacity="0.9" width="2.5" height="1.4" position="0 0 -0.05"
+                material="shader: flat"></a-plane>
+            <a-text id="ui-name" value="..." align="center" position="0 0.4 0" width="4.5" color="#FFF"
+                font="kelsonsans"></a-text>
+            <a-text id="ui-price" value="..." align="center" position="0 0.1 0" width="5" color="#00FFCC"></a-text>
+            <a-text id="ui-desc" value="..." align="center" position="0 -0.3 0" width="2.5" color="#AAA"
+                wrap-count="25"></a-text>
+        </a-entity>
+        <!-- ==================== PRODUCTS SECTION ==================== -->
+        <!-- Product 1: The Golden Box -->
+        <a-entity position="-3 0 -3">
+            <!-- Pedestal -->
+            <a-cylinder position="0 0.5 0" radius="0.5" height="1" color="#222"
+                material="metalness: 0.8; roughness: 0.2"></a-cylinder>
+            <!-- Item -->
+            <a-box position="0 1.6 0" width="0.6" height="0.6" depth="0.6" color="#f1c40f"
+                material="metalness: 0.5; roughness: 0.2"
+                shop-item="name: Luxury Timepiece; price: 1599.00; desc: An exquisite piece of craftsmanship for your wrist."
+                animation="property: rotation; to: 0 360 0; loop: true; dur: 8000; easing: linear">
+            </a-box>
+        </a-entity>
+        <!-- Product 2: Central Featured Orb -->
+        <a-entity position="0 0 -4.5">
+            <!-- Pedestal Glowing -->
+            <a-cylinder position="0 0.5 0" radius="0.6" height="1" color="#222"
+                material="metalness: 0.8; roughness: 0.2"></a-cylinder>
+            <a-cylinder position="0 1.05 0" radius="0.4" height="0.1" color="#8e44ad" opacity="0.5"></a-cylinder>
+            <!-- Item -->
+            <a-sphere position="0 1.8 0" radius="0.5" color="#9b59b6" material="metalness: 0.9; roughness: 0.1"
+                shop-item="name: Levitating Speaker; price: 249.50; desc: Experience 360-degree sound defying gravity."
+                animation="property: position; to: 0 2.1 0; dir: alternate; loop: true; dur: 2500; easing: easeInOutSine">
+            </a-sphere>
+        </a-entity>
+        <!-- Product 3: Geometric Pyramid -->
+        <a-entity position="3 0 -3">
+            <!-- Pedestal -->
+            <a-cylinder position="0 0.5 0" radius="0.5" height="1" color="#222"
+                material="metalness: 0.8; roughness: 0.2"></a-cylinder>
+            <!-- Item -->
+            <a-tetrahedron position="0 1.7 0" radius="0.6" color="#e74c3c" material="metalness: 0.3; roughness: 0.5"
+                shop-item="name: Art Deco Lamp; price: 85.00; desc: A modern source of illumination for any setting."
+                animation="property: rotation; to: 360 360 0; loop: true; dur: 10000; easing: linear">
+            </a-tetrahedron>
+        </a-entity>
+        <!-- ========================================================== -->
+        <!-- Player / Camera Setup -->
+        <a-entity position="0 1.6 2">
+            <a-camera id="main-camera">
+                <!-- Crosshair Cursor for Gaze Interactions -->
+                <a-entity cursor="fuse: true; fuseTimeout: 2000" position="0 0 -1"
+                    geometry="primitive: ring; radiusInner: 0.015; radiusOuter: 0.025"
+                    material="color: #00FFCC; shader: flat"
+                    animation__click="property: scale; startEvents: click; easing: easeInCubic; dur: 150; from: 0.1 0.1 0.1; to: 1 1 1"
+                    animation__fusing="property: scale; startEvents: fusing; easing: easeInCubic; dur: 2000; from: 1 1 1; to: 0.1 0.1 0.1"
+                    animation__mouseleave="property: scale; startEvents: mouseleave; easing: easeInCubic; dur: 300; to: 1 1 1">
+                </a-entity>
+
+                <!-- Cart Notification Alert UI -->
+                <a-text id="cart-notification" value="Added to Cart!" align="center" position="0 -0.2 -1"
+                    color="#00FFCC" width="1.5" visible="false"></a-text>
+            </a-camera>
+        </a-entity>
+    </a-scene>
+</body>
+
+</html>

@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Realistic World Traveler VR</title>
+    
+    <!-- Core A-Frame -->
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+
+    <script>
+        // Custom component to switch realistic locations
+        AFRAME.registerComponent('travel-portal', {
+            schema: {
+                title: {type: 'string'},
+                url: {type: 'string'},
+                color: {type: 'color'}
+            },
+            init: function() {
+                var el = this.el;
+                var data = this.data;
+                var screen = document.querySelector('#travel-screen');
+                var hudText = document.querySelector('#hud-text');
+
+                // Hover highlight effects
+                el.addEventListener('mouseenter', () => {
+                    el.querySelector('a-torus').setAttribute('color', '#00FFCC');
+                    let circle = el.querySelector('a-circle');
+                    if(circle) circle.setAttribute('animation__scale', 'property: scale; to: 1.1 1.1 1.1; dir: alternate; loop: true; dur: 500');
+                });
+                
+                el.addEventListener('mouseleave', () => {
+                    el.querySelector('a-torus').setAttribute('color', data.color);
+                    let circle = el.querySelector('a-circle');
+                    if(circle) {
+                        circle.removeAttribute('animation__scale');
+                        circle.setAttribute('scale', '1 1 1');
+                    }
+                });
+
+                // Teleportation Warp Sequence
+                el.addEventListener('click', () => {
+                    hudText.setAttribute('text', `value: TRAVELING TO: ${data.title}...`);
+                    hudText.setAttribute('text', 'color', '#00FFCC');
+                    
+                    // Audio transition (Deep Synth Warp)
+                    let actx = new (window.AudioContext || window.webkitAudioContext)();
+                    let osc = actx.createOscillator();
+                    let gain = actx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(400, actx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(50, actx.currentTime + 1);
+                    gain.gain.setValueAtTime(0.5, actx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, actx.currentTime + 1);
+                    osc.connect(gain); gain.connect(actx.destination);
+                    osc.start(); osc.stop(actx.currentTime + 1);
+
+                    // Fade camera to black
+                    let fade = document.querySelector('#fade-screen');
+                    fade.setAttribute('animation', 'property: material.opacity; to: 1; dur: 800');
+                    
+                    setTimeout(() => {
+                        // Change the IMAX cylinder projector strictly to the high-def real-world image
+                        screen.setAttribute('material', `src: url(${data.url})`);
+                        
+                        // Hide portals temporarily so user gets a fully unobstructed realistic view!
+                        document.querySelector('#portal-hub').setAttribute('position', '0 -10 0');
+                        
+                        setTimeout(() => {
+                            // Fade camera back in
+                            fade.setAttribute('animation', 'property: material.opacity; to: 0; dur: 1000');
+                            hudText.setAttribute('text', `value: ARRIVED AT:\n${data.title}`);
+                            hudText.setAttribute('text', 'color', '#FFF');
+                            
+                            setTimeout(() => {
+                                // Bring portals back after 8 seconds
+                                document.querySelector('#portal-hub').setAttribute('animation', 'property: position; to: 0 0 0; dur: 2000; easing: easeOutElastic');
+                                hudText.setAttribute('text', 'value: SELECT YOUR DESTINATION');
+                            }, 8000); 
+                            
+                        }, 500); // 0.5s loading buffer
+                    }, 900);
+                });
+            }
+        });
+    </script>
+</head>
+<body>
+    <a-scene background="color: #020202" renderer="antialias: true; colorManagement: true">
+        
+        <!-- ================= ADVANCED REALISTIC "IMAX" VR VIEWER ================= -->
+        <!-- Because real high-res photography of the Taj Mahal isn't 360-equirectangular, mapped onto a sphere it would look warped. -->
+        <!-- Instead, VR engineers map it onto a massive wrapping cylinder (like an IMAX screen bending around your vision). -->
+        <!-- This preserves the realism perfectly! -->
+        <a-cylinder id="travel-screen" radius="30" height="20" position="0 2 0" side="back" 
+                    material="src: url(https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Himalayas%2C_Nepal.jpg/2560px-Himalayas%2C_Nepal.jpg); shader: flat" 
+                    open-ended="true"></a-cylinder>
+        
+        <!-- Glossy immersive floor to ground the user -->
+        <a-cylinder radius="30" height="0.1" position="0 -0.05 0" color="#050505" material="metalness: 0.8; roughness: 0.1"></a-cylinder>
+
+        <!-- Deep space skybox extending above the cylinder -->
+        <a-sky color="#020202"></a-sky>
+
+        <!-- ================= REALISTIC TRAVEL HUB ================= -->
+        <a-entity id="portal-hub" position="0 0 0">
+            
+            <!-- ====== THE TAJ MAHAL ====== -->
+            <a-entity class="clickable" travel-portal="title: THE TAJ MAHAL; url: https://upload.wikimedia.org/wikipedia/commons/c/c8/Taj_Mahal_in_March_2004.jpg; color: #FFFFFF" position="-3 1.5 -4" rotation="0 30 0">
+                <!-- Rotating Ring -->
+                <a-torus radius="0.8" radius-tubular="0.05" color="#FFFFFF" animation="property: rotation; to: 0 0 360; loop: true; dur: 8000; easing: linear"></a-torus>
+                <!-- Central Image Thumbnail dynamically fetching the real image -->
+                <a-circle radius="0.75" color="#FFF" material="src: url(https://upload.wikimedia.org/wikipedia/commons/c/c8/Taj_Mahal_in_March_2004.jpg); shader: flat" position="0 0 -0.01"></a-circle>
+                <!-- Title -->
+                <a-text value="TAJ MAHAL" align="center" position="0 1.2 0" color="#FFF" font="kelsonsans"></a-text>
+            </a-entity>
+
+            <!-- ====== THE RED FORT ====== -->
+            <a-entity class="clickable" travel-portal="title: THE RED FORT; url: https://upload.wikimedia.org/wikipedia/commons/3/30/Red_Fort_Delhi.jpg; color: #E74C3C" position="0 1.5 -5" rotation="0 0 0">
+                <a-torus radius="0.8" radius-tubular="0.05" color="#E74C3C" animation="property: rotation; to: 0 0 -360; loop: true; dur: 8000; easing: linear"></a-torus>
+                <!-- Thumbnail -->
+                <a-circle radius="0.75" color="#FFF" material="src: url(https://upload.wikimedia.org/wikipedia/commons/3/30/Red_Fort_Delhi.jpg); shader: flat" position="0 0 -0.01"></a-circle>
+                <a-text value="RED FORT" align="center" position="0 1.2 0" color="#E74C3C" font="kelsonsans"></a-text>
+            </a-entity>
+
+            <!-- ====== MOUNTAINS ====== -->
+            <a-entity class="clickable" travel-portal="title: HIMALAYAS; url: https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Himalayas%2C_Nepal.jpg/2560px-Himalayas%2C_Nepal.jpg; color: #3498DB" position="3 1.5 -4" rotation="0 -30 0">
+                <a-torus radius="0.8" radius-tubular="0.05" color="#3498DB" animation="property: rotation; to: 360 0 0; loop: true; dur: 8000; easing: linear"></a-torus>
+                <a-circle radius="0.75" color="#FFF" material="src: url(https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Himalayas%2C_Nepal.jpg/2560px-Himalayas%2C_Nepal.jpg); shader: flat" position="0 0 -0.01"></a-circle>
+                <a-text value="MOUNTAINS" align="center" position="0 1.2 0" color="#3498DB" font="kelsonsans"></a-text>
+            </a-entity>
+            
+            <!-- ====== TREES / FORESTS ====== -->
+            <a-entity class="clickable" travel-portal="title: REDWOOD FOREST; url: https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/Redwood_National_Park%2C_Fog_in_the_Forest.jpg/2560px-Redwood_National_Park%2C_Fog_in_the_Forest.jpg; color: #2ECC71" position="-4.5 1.5 -1.5" rotation="0 60 0">
+                <a-torus radius="0.8" radius-tubular="0.05" color="#2ECC71" animation="property: rotation; to: 0 360 0; loop: true; dur: 8000; easing: linear"></a-torus>
+                <!-- Realistic Forest Image Hub -->
+                <a-circle radius="0.75" color="#FFF" material="src: url(https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/Redwood_National_Park%2C_Fog_in_the_Forest.jpg/2560px-Redwood_National_Park%2C_Fog_in_the_Forest.jpg); shader: flat" position="0 0 -0.01"></a-circle>
+                <a-text value="TREES" align="center" position="0 1.2 0" color="#2ECC71" font="kelsonsans"></a-text>
+            </a-entity>
+
+        </a-entity>
+
+        <!-- ================= ADVANCED CAMERA RIG ================= -->
+        <a-entity id="camera-rig" position="0 0 0">
+            <a-camera position="0 1.6 0">
+                
+                <!-- Advanced Interaction Crosshair -->
+                <a-entity id="crosshair" cursor="fuse: true; fuseTimeout: 1200"
+                          position="0 0 -1"
+                          geometry="primitive: ring; radiusInner: 0.01; radiusOuter: 0.02"
+                          material="color: #FFF; shader: flat; opacity: 0.8"
+                          raycaster="objects: .clickable"
+                          animation__fusing="property: scale; startEvents: fusing; easing: easeInCubic; dur: 1200; from: 1 1 1; to: 0.1 0.1 0.1"
+                          animation__mouseleave="property: scale; startEvents: mouseleave; easing: easeInCubic; dur: 300; to: 1 1 1">
+                </a-entity>
+
+                <!-- Black Screen geometry for seamless warping fade effects -->
+                <a-plane id="fade-screen" position="0 0 -0.5" width="2" height="2" material="color: #000; shader: flat; transparent: true; opacity: 0"></a-plane>
+
+                <!-- Diegetic UI Display Text -->
+                <a-entity position="0 -0.5 -1.5" geometry="primitive: plane; width: 3.5; height: 0.35" material="color: #000; opacity: 0.7; transparent: true">
+                    <a-text id="hud-text" value="SELECT YOUR DESTINATION" align="center" position="0 0 0.01" color="#FFF" scale="0.6 0.6 0.6" font="kelsonsans"></a-text>
+                </a-entity>
+                
+            </a-camera>
+        </a-entity>
+
+    </a-scene>
+</body>
+</html>

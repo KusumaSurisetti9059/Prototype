@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Realistic Gym Trainee Simulator VR</title>
+    
+    <!-- Core A-Frame -->
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    
+    <!-- A-Frame Extras (Required to play animations inside realistic GLTF 3D Hand-rigged models) -->
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
+
+    <script>
+        // Global Gym Tracking State
+        window.Simulation = {
+            state: 'WAITING', // WAITING -> LIFTING -> DONE
+            reps: 0,
+            targetReps: 10,
+            isLifting: false
+        };
+
+        // Synthesizes a high-tempo 120BPM Electronic Gym Beat using Web Audio
+        function playGymBeat() {
+            if(window.Simulation.state === 'DONE') return; 
+            
+            let actx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Heavy Kick Drum synthesis
+            let osc = actx.createOscillator();
+            let gain = actx.createGain();
+            osc.frequency.setValueAtTime(150, actx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(0.01, actx.currentTime + 0.1);
+            
+            gain.gain.setValueAtTime(0.6, actx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, actx.currentTime + 0.1); 
+            
+            osc.connect(gain); 
+            gain.connect(actx.destination);
+            
+            osc.start(); 
+            osc.stop(actx.currentTime + 0.1);
+            
+            // Also occasionally pulse neon lights to the beat
+            let light = document.querySelector('#neon-light');
+            if(light) {
+                light.setAttribute('intensity', '2');
+                setTimeout(() => light.setAttribute('intensity', '1'), 100);
+            }
+            
+            setTimeout(playGymBeat, 500); 
+        }
+
+        /* ==============================================
+           1. INITIALIZATION & MUSIC MANAGER
+           ============================================== */
+        AFRAME.registerComponent('gym-manager', {
+            init: function() {
+                window.addEventListener('click', () => {
+                    if(!window.audioStarted) {
+                        window.audioStarted = true;
+                        playGymBeat();
+                    }
+                }, {once: true});
+            }
+        });
+
+        /* ==============================================
+           2. DUMBBELL RACK (PICKUP MECHANICS)
+           ============================================== */
+        AFRAME.registerComponent('dumbbell-pickup', {
+            init: function() {
+                var el = this.el;
+                
+                // Hover Effects
+                el.addEventListener('mouseenter', () => {
+                    if(window.Simulation.state === 'WAITING') el.querySelector('.db-bar').setAttribute('color', '#00FFCC');
+                });
+                el.addEventListener('mouseleave', () => {
+                    if(window.Simulation.state === 'WAITING') el.querySelector('.db-bar').setAttribute('color', '#Silver');
+                });
+
+                // Grab and Equip
+                el.addEventListener('click', () => {
+                    if(window.Simulation.state === 'WAITING') {
+                        window.Simulation.state = 'LIFTING';
+                        
+                        // Hide environmental dumbbell
+                        el.setAttribute('visible', 'false');
+                        el.removeAttribute('class');
+                        
+                        // Reveal First-Person rigged dumbbell attached to camera
+                        document.querySelector('#fps-dumbbell').setAttribute('visible', 'true');
+                        
+                        // Update HUD instructions
+                        document.querySelector('#hud-text').setAttribute('text', 'value: MOUSE DOWN / HOLD TO CURL.\nMOUSE UP TO RELEASE.\nDO 10 REPS!');
+                        document.querySelector('#hud-text').setAttribute('text', 'color', '#00FFCC');
+                        
+                        // Trainer model reacts to you picking it up
+                        document.querySelector('#trainer-text').setAttribute('value', 'LIGHT WEIGHT!\nCURL IT!');
+                    }
+                });
+            }
+        });
+
+        /* ==============================================
+           3. BICEP CURL PHYSICS LOGIC (FIRST-PERSON)
+           ============================================== */
+        AFRAME.registerComponent('curl-mechanic', {
+            init: function() {
+                var el = this.el;
+                
+                // PULLING THE WEIGHT UP
+                window.addEventListener('mousedown', () => {
+                    if(window.Simulation.state === 'LIFTING') {
+                        window.Simulation.isLifting = true;
+                        
+                        // Physically animate the rig up towards the camera face
+                        el.setAttribute('animation__rot', 'property: rotation; to: -60 -20 0; dur: 200; easing: easeOutQuad');
+                        el.setAttribute('animation__pos', 'property: position; to: 0.3 -0.2 -0.8; dur: 200; easing: easeOutQuad');
+                        
+                        // Increase logic
+                        window.Simulation.reps++;
+                        document.querySelector('#hud-text').setAttribute('text', `value: REPS: ${window.Simulation.reps} / 10\nKEEP PUSHING!`);
+                        
+                        // Physical exertion metallic clink sound synth
+                        let actx = new (window.AudioContext || window.webkitAudioContext)();
+                        let osc = actx.createOscillator();
+                        let gain = actx.createGain();
+                        osc.type = 'square';
+                        osc.frequency.setValueAtTime(200, actx.currentTime);
+                        osc.frequency.exponentialRampToValueAtTime(50, actx.currentTime + 0.2);
+                        gain.gain.setValueAtTime(0.1, actx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.01, actx.currentTime + 0.2);
+                        osc.connect(gain); gain.connect(actx.destination);
+                        osc.start(); osc.stop(actx.currentTime + 0.2);
+                        
+                        // Realistic Trainer Logic encourages you every 2 reps
+                        if(window.Simulation.reps % 2 === 0 && window.Simulation.reps < 10) {
+                            document.querySelector('#trainer-text').setAttribute('value', 'Yeah buddy!\nExcellent form!');
+                            document.querySelector('#trainer-model').setAttribute('animation', 'property: position; to: 0 0.5 -2.5; dur: 200; dir: alternate; loop: 2'); // Little jump of excitement
+                        }
+
+                        // VICTORY CONDITION
+                        if(window.Simulation.reps >= window.Simulation.targetReps) {
+                            window.Simulation.state = 'DONE';
+                            
+                            document.querySelector('#hud-text').setAttribute('text', 'value: SET COMPLETE.\nMUSCLE GAINS ACHIEVED.');
+                            document.querySelector('#hud-text').setAttribute('text', 'color', '#00FF00');
+                            
+                            document.querySelector('#trainer-text').setAttribute('value', 'EXCELLENT\nWORK!');
+                            document.querySelector('#trainer-text').setAttribute('text', 'color', '#00FF00');
+                            
+                            // The realistic model spins to celebrate!
+                            document.querySelector('#trainer-model').setAttribute('animation__spin', 'property: rotation; to: 0 360 0; dur: 800; easing: easeOutQuad');
+                            
+                            document.querySelector('#neon-light').setAttribute('color', '#00FF00');
+                            document.querySelector('#back-light').setAttribute('color', '#00FF00');
+                        }
+                    }
+                });
+                
+                // RELEASING THE WEIGHT DOWN 
+                window.addEventListener('mouseup', () => {
+                    if(window.Simulation.state === 'LIFTING' || window.Simulation.state === 'DONE') {
+                        window.Simulation.isLifting = false;
+                        
+                        el.setAttribute('animation__rot', 'property: rotation; to: 0 -20 0; dur: 400; easing: easeInQuad');
+                        el.setAttribute('animation__pos', 'property: position; to: 0.5 -0.6 -1; dur: 400; easing: easeInQuad');
+                    }
+                });
+            }
+        });
+
+    </script>
+</head>
+<body>
+    <a-scene background="color: #050505" shadow="type: pcfsoft" renderer="colorManagement: true; antialias: true" gym-manager>
+        
+        <a-assets>
+            <img id="mat-tex" src="https://cdn.aframe.io/a-painter/images/floor.jpg" crossorigin="anonymous">
+        </a-assets>
+
+        <!-- ================= THE GYM FACILITY (ENVIRONMENT) ================= -->
+        <a-entity id="gym-room">
+            <!-- Rubber Gym Mat Floor -->
+            <a-plane rotation="-90 0 0" width="15" height="15" color="#111" material="roughness: 0.9; metalness: 0.2; src: #mat-tex; repeat: 10 10" shadow="receive: true"></a-plane>
+            
+            <a-plane position="0 4 0" rotation="90 0 0" width="15" height="15" color="#222" shadow="receive: true"></a-plane>
+            
+            <!-- Wall of Mirrors -->
+            <a-plane position="0 2 -6" width="15" height="4" color="#FFF" material="roughness: 0.1; metalness: 0.9" shadow="receive: true"></a-plane>
+            
+            <a-plane position="-7.5 2 0" rotation="0 90 0" width="15" height="4" color="#4a2e2b" material="roughness: 0.9"></a-plane>
+            <a-plane position="7.5 2 0" rotation="0 -90 0" width="15" height="4" color="#4a2e2b" material="roughness: 0.9"></a-plane>
+
+            <!-- Lighting Array -->
+            <a-light type="ambient" color="#222"></a-light>
+            <a-light id="neon-light" type="spot" position="0 3.8 -2" rotation="-70 0 0" color="#AA00FF" intensity="1" distance="15" angle="60" penumbra="0.5" shadow="cast: true"></a-light>
+            <a-light id="back-light" type="spot" position="0 3.8 2" rotation="-110 0 0" color="#0088FF" intensity="1.5" distance="15" angle="60" penumbra="0.5" shadow="cast: true"></a-light>
+        </a-entity>
+
+
+        <!-- ================= REALISTIC 3D GYM TRAINER MODEL ================= -->
+        <!-- Utalizing a high-fidelity rigged humanoid GLTF model (Xbot) instead of abstract cylinders -->
+        <!-- The animation-mixer allows the model to naturally "breathe" and execute its idle animation sequence -->
+        <a-entity id="trainer-model" position="0 0 -2.5" rotation="0 0 0" scale="1.2 1.2 1.2"
+                  gltf-model="url(https://raw.githubusercontent.com/mrdoob/three.js/master/examples/models/gltf/Xbot.glb)"
+                  animation-mixer="clip: *; loop: repeat; timeScale: 1" shadow="cast: true">
+            
+            <!-- Floating Dialogue Text Box directly above the realistic model's head -->
+            <a-text id="trainer-text" value="I AM YOUR NEW TRAINER.\nPICK UP THE WEIGHT." align="center" position="0 1.9 0" color="#FFCC00" font="kelsonsans" scale="0.6 0.6 0.6"></a-text>
+        </a-entity>
+
+
+        <!-- ================= REALISTIC HARDWARE (HEX DUMBBELLS) ================= -->
+        <a-entity id="dumbbell-object" class="clickable" dumbbell-pickup position="2 0.5 -1.5" rotation="0 0 0">
+            <!-- Chrome Bar -->
+            <a-cylinder class="db-bar" position="0 0 0" radius="0.04" height="0.6" color="#Silver" material="metalness: 0.9; roughness: 0.2" rotation="90 0 0" shadow="cast: true"></a-cylinder>
+            
+            <!-- Realistic Iron Hex Weights (segments-radial="6" makes it a heavy hexagon instead of a tube) -->
+            <a-cylinder position="0 0 -0.2" radius="0.18" height="0.12" color="#111" material="roughness: 0.9; metalness: 0.1" rotation="90 0 0" segments-radial="6" shadow="cast: true"></a-cylinder>
+            <a-cylinder position="0 0 0.2" radius="0.18" height="0.12" color="#111" material="roughness: 0.9; metalness: 0.1" rotation="90 0 0" segments-radial="6" shadow="cast: true"></a-cylinder>
+            
+            <!-- Highlight Ring targeting -->
+            <a-ring radius-inner="0.3" radius-outer="0.33" position="0 0 0" color="#FFF" opacity="0.3" rotation="90 0 0" animation="property: rotation; to: 90 360 0; loop: true; dur: 3000; easing: linear"></a-ring>
+            <!-- Instruction -->
+            <a-text value="GRAB 45LBS" position="0.3 0.3 0" color="#00FFCC" scale="0.5 0.5 0.5"></a-text>
+        </a-entity>
+
+        <a-box position="2 0.1 -1.5" width="0.8" height="0.2" depth="0.8" color="#333" material="roughness: 1" shadow="cast: true"></a-box>
+
+
+        <!-- ================= ADVANCED CAMERA RIG ================= -->
+        <a-entity id="camera-rig" position="0 0 2">
+            <a-camera position="0 1.6 0">
+                
+                <a-entity id="crosshair" cursor="fuse: true; fuseTimeout: 1000"
+                          position="0 0 -1"
+                          geometry="primitive: ring; radiusInner: 0.01; radiusOuter: 0.02"
+                          material="color: #FFF; shader: flat; opacity: 0.8"
+                          raycaster="objects: .clickable"
+                          animation__fusing="property: scale; startEvents: fusing; easing: easeInCubic; dur: 1000; from: 1 1 1; to: 0.1 0.1 0.1"
+                          animation__mouseleave="property: scale; startEvents: mouseleave; easing: easeInCubic; dur: 300; to: 1 1 1">
+                </a-entity>
+
+                <a-entity position="0 -0.5 -1.5" geometry="primitive: plane; width: 3.5; height: 0.4" material="color: #000; opacity: 0.7; transparent: true">
+                    <a-text id="hud-text" value="AWAITING TRAINEE...\nLOOK AT THE DUMBBELL TO EQUIP IT." align="center" position="0 0 0.01" color="#FFF" scale="0.6 0.6 0.6" font="kelsonsans"></a-text>
+                </a-entity>
+
+                <!-- ================= REALISTIC FPS HARDWARE (HEX DUMBBELLS) ================= -->
+                <!-- Exact match of the Hex Dumbbells bounded to the camera for lifting physics -->
+                <a-entity id="fps-dumbbell" position="0.5 -0.6 -1" rotation="0 -20 0" visible="false" curl-mechanic>
+                    <a-cylinder position="0 0 0" radius="0.04" height="0.6" color="#Silver" material="metalness: 0.9; roughness: 0.2" rotation="90 0 0" shadow="cast: true"></a-cylinder>
+                    <a-cylinder position="0 0 -0.2" radius="0.18" height="0.12" color="#111" material="roughness: 0.9; metalness: 0.1" rotation="90 0 0" segments-radial="6" shadow="cast: true"></a-cylinder>
+                    <a-cylinder position="0 0 0.2" radius="0.18" height="0.12" color="#111" material="roughness: 0.9; metalness: 0.1" rotation="90 0 0" segments-radial="6" shadow="cast: true"></a-cylinder>
+                </a-entity>
+                
+            </a-camera>
+        </a-entity>
+
+    </a-scene>
+</body>
+</html>
